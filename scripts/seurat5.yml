@@ -1,0 +1,33 @@
+name: seurat5
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - r-base=4.3.*
+  - r-seurat=5.0.*
+  - r-harmony
+  - r-sctransform
+  - r-matrix
+  - r-data.table
+  - r-dplyr
+  - r-tibble
+  - r-ggplot2
+  - r-gridextra
+  - r-rcolorbrewer 
+  - r-patchwork
+  - r-future
+  - r-cli
+  - r-fansi
+  - r-utf8
+  - r-rcpp
+  - r-rcpparmadillo
+  - r-rlang
+  - r-glue
+  - r-digest
+  - r-fs
+  - r-httr
+  - r-jsonlite 
+  - gcc
+  - gxx
+  - make

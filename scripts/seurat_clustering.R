@@ -14,17 +14,34 @@ suppressPackageStartupMessages({
 })
 options(future.globals.maxSize = 10 * 1024^3)
 
-setwd("/rhome/jzhan413/bigdata/proj/alleleRNA/24-12-17_SingleCell/25-06-10_all_samples/")
+## ---------------------------
+## Parse arguments
+## ---------------------------
+
+args <- commandArgs(trailingOnly = TRUE)
+
+if (length(args) < 2) {
+  stop("Usage: seurat_cluster.R project_dir mt_threhold\n",
+       "Example:\n",
+       "  Rscript seurat_cluster.R \\\n",
+       "  /rhome/jzhan413/bigdata/proj/alleleRNA/24-12-17_SingleCell/25-06-10_all_samples/ \\\n",
+       "    20  \\\n")
+}
+project_dir     <- args[1]
+mt_threshold  <-  as.numeric(args[2])
+
+setwd(project_dir)
 
 ############### reading batch information ############## 
 batch_table <- fread("batch_info.txt")
 batch_map <- setNames(batch_table$batch, batch_table$sample)
 
 
-
-mt_threshold <- 20   # change to 25 or whatever you decide
-out_dir <- "qc/"
+out_dir <- "seurat_qc/"
 out_seurat_dir <- "Processed_data"
+if (!dir.exists(out_dir)){
+  dir.create(out_dir,recursive = TRUE)
+} 
 if (!dir.exists(out_seurat_dir)){
   dir.create(out_seurat_dir,recursive = TRUE)
 } 
@@ -44,11 +61,6 @@ for (i in seq_along(soupx_dirs)) {
   message("  sample = ", sample_names[i], "  dir = ", soupx_dirs[i])
 }
 batch_map <- setNames(batch_table$batch, batch_table$sample)
-
-
-
-
-
 
 ## ---------------------------
 ## 2. Read each SoupX-corrected matrix as a Seurat object
@@ -148,7 +160,6 @@ dev.off()
 ## filter samples with median mitochrodra percentage 
 ## ---------------------------------------------------
 
-# 1) Compute median percent.mt per sample
 mt_stats <- seurat_obj@meta.data %>%
   rownames_to_column("barcode") %>%
   group_by(sample) %>%
@@ -429,114 +440,29 @@ saveRDS(seurat_obj_harm,
         file = paste0(out_seurat_dir,"/seurat_obj_harm_with_celltype.rds"))
 
 ############### Cell annotation ############################## 
-lapply(c("dplyr","Seurat","HGNChelper","openxlsx"), library, character.only = T)
-
-source("https://raw.githubusercontent.com/IanevskiAleksandr/sc-type/master/R/sctype_wrapper.R"); 
-source("https://raw.githubusercontent.com/IanevskiAleksandr/sc-type/master/R/gene_sets_prepare.R")
-source("https://raw.githubusercontent.com/IanevskiAleksandr/sc-type/master/R/sctype_score_.R")
-db_ <- "https://raw.githubusercontent.com/IanevskiAleksandr/sc-type/master/ScTypeDB_full.xlsx";
-tissue <- "Placenta" 
-gs_list <- gene_sets_prepare(db_, tissue)
-seurat_package_v5 <- isFALSE('counts' %in% names(attributes(seurat_obj_harm[["SCT"]])));
-scRNAseqData_scaled <- if (seurat_package_v5) as.matrix(seurat_obj_harm[["SCT"]]$scale.data) else as.matrix(seurat_obj_harm[["SCT"]]@scale.data)
-es.max <- sctype_score(scRNAseqData = scRNAseqData_scaled, scaled = TRUE, gs = gs_list$gs_positive, gs2 = gs_list$gs_negative)
-cL_resutls <- do.call("rbind", lapply(unique(seurat_obj_harm@meta.data$seurat_clusters), function(cl){
-  es.max.cl = sort(rowSums(es.max[ ,rownames(seurat_obj_harm@meta.data[seurat_obj_harm@meta.data$seurat_clusters==cl, ])]), decreasing = !0)
-  head(data.frame(cluster = cl, type = names(es.max.cl), scores = es.max.cl, ncells = sum(seurat_obj_harm@meta.data$seurat_clusters==cl)), 10)
-}))
-sctype_scores <- cL_resutls %>% group_by(cluster) %>% top_n(n = 1, wt = scores)  
-
-# set low-confident (low ScType score) clusters to "unknown"
-sctype_scores$type[as.numeric(as.character(sctype_scores$scores)) < sctype_scores$ncells/4] <- "Unknown"
-print(sctype_scores[,1:3])
-
-
-
-#############moncle3 ###########
-suppressPackageStartupMessages({
-  library(Seurat)
-  library(monocle3)
-  library(SeuratWrappers)})
-
-DefaultAssay(seurat_obj_harm) <- "RNA"
-
-#### cpmvert seurat object into cell_data_set object in monocles 
-cds <- as.cell_data_set(seurat_obj_harm)
-#cell meta data 
-#colData(cds)
-#gene meta data 
-#fData(cds)
-fData(cds)$gene_short_name <-rownames(fData(cds))
-# to get counts of cell_data_set 
-#counts(cds)
-
-recreate.partition <- rep(1, length(colnames(cds)))
-names(recreate.partition) <- colnames(cds)
-recreate.partition <- as.factor(recreate.partition)
-
-cds@clusters$UMAP$partitions <- recreate.partition
-
-list_cluster <- seurat_obj_harm@active.ident
-cds@clusters$UMAP$clusters <- list_cluster
-
-reducedDims(cds)$UMAP <- Embeddings(seurat_obj_harm, "umap")
-cluster.before.trajectory <- plot_cells(
-  cds,
-  color_cells_by = "cluster",
-  label_groups_by_cluster = FALSE,
-  group_label_size = 5
-) +
-  theme(legend.position = "right")
-
-ggsave(filename = paste0(out_dir,"/cluster_before_tra.pdf"),plot = cluster.before.trajectory, width    = 12,height   = 6)
-
-
-cds <- preprocess_cds(cds, num_dim = 50)
-cds <- cluster_cells(cds)
-
-colData(cds)$redefined_cluster <- colData(cds)$cell_type
-colData(cds)$redefined_cluster <- as.factor(colData(cds)$redefined_cluster)
-cluster.names <- plot_cells(
-  cds,
-  color_cells_by = "redefined_cluster",
-  label_groups_by_cluster = FALSE,
-  group_label_size = 3
-) +theme(legend.position = "right")
-
-ggsave(filename = paste0(out_dir,"/cluster_before_tra_celltype.pdf"),plot = cluster.names , width    = 12,height   = 6)
-
-
-
-cds <- learn_graph(cds,use_partition = FALSE)
-
-
-root_cells <- colnames(cds)[colData(cds)$redefined_cluster == "CTB"]
-
+# lapply(c("dplyr","Seurat","HGNChelper","openxlsx"), library, character.only = T)
 # 
-# plot_cells(cds, color_cells_by = "seurat_clusters",
-#            label_groups_by_cluster = FALSE,
-#            label_leaves = FALSE,
-#            label_branch_points = FALSE,
-#            label_roots = FALSE,
-#            group_label_size = 3)
+# source("https://raw.githubusercontent.com/IanevskiAleksandr/sc-type/master/R/sctype_wrapper.R"); 
+# source("https://raw.githubusercontent.com/IanevskiAleksandr/sc-type/master/R/gene_sets_prepare.R")
+# source("https://raw.githubusercontent.com/IanevskiAleksandr/sc-type/master/R/sctype_score_.R")
+# db_ <- "https://raw.githubusercontent.com/IanevskiAleksandr/sc-type/master/ScTypeDB_full.xlsx";
+# tissue <- "Placenta" 
+# gs_list <- gene_sets_prepare(db_, tissue)
+# seurat_package_v5 <- isFALSE('counts' %in% names(attributes(seurat_obj_harm[["SCT"]])));
+# scRNAseqData_scaled <- if (seurat_package_v5) as.matrix(seurat_obj_harm[["SCT"]]$scale.data) else as.matrix(seurat_obj_harm[["SCT"]]@scale.data)
+# es.max <- sctype_score(scRNAseqData = scRNAseqData_scaled, scaled = TRUE, gs = gs_list$gs_positive, gs2 = gs_list$gs_negative)
+# cL_resutls <- do.call("rbind", lapply(unique(seurat_obj_harm@meta.data$seurat_clusters), function(cl){
+#   es.max.cl = sort(rowSums(es.max[ ,rownames(seurat_obj_harm@meta.data[seurat_obj_harm@meta.data$seurat_clusters==cl, ])]), decreasing = !0)
+#   head(data.frame(cluster = cl, type = names(es.max.cl), scores = es.max.cl, ncells = sum(seurat_obj_harm@meta.data$seurat_clusters==cl)), 10)
+# }))
+# sctype_scores <- cL_resutls %>% group_by(cluster) %>% top_n(n = 1, wt = scores)  
 # 
+# # set low-confident (low ScType score) clusters to "unknown"
+# sctype_scores$type[as.numeric(as.character(sctype_scores$scores)) < sctype_scores$ncells/4] <- "Unknown"
+# print(sctype_scores[,1:3])
 
 
-cds <- order_cells(cds,reduction_method = 'UMAP', root_cells = root_cells)
-pseudotime_plt<-plot_cells(cds, color_cells_by = "pseudotime",
-           label_groups_by_cluster = FALSE,
-           label_leaves = FALSE,
-           label_branch_points = FALSE,
-           label_roots = FALSE)
-ggsave(filename = paste0(out_dir,"/pseudotime_plt.pdf"),plot = pseudotime_plt , width    = 12,height   = 6)
 
-cds$monocle3_pseudotime <- pseudotime(cds)
-pseudo_data <- as.data.frame(colData(cds)) 
-
-pseudo_time_cluster <- ggplot(pseudo_data,aes(monocle3_pseudotime, redefined_cluster, fill=redefined_cluster)) +
-  geom_boxplot() 
-
-ggsave(filename = paste0(out_seurat_dir,"/average_pseudotime.pdf"),plot = pseudo_time_cluster, width    = 12,height   = 6)
 
 
 ############################ Marker exploration for gender specific ###################

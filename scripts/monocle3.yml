@@ -1,0 +1,43 @@
+name: monocle3
+channels:
+   - conda-forge
+   - bioconda
+   - defaults
+
+dependencies:
+   # Core R
+   - r-base=4.3.*
+   - r-essentials
+
+   # Seurat + dependencies
+   - r-seurat=5.0.*
+   - r-matrix
+   - r-dplyr
+   - r-ggplot2
+   - r-tibble
+   - r-patchwork
+
+   # monocle3 dependencies
+   - r-monocle3
+   - bioconductor-singlecellexperiment
+   - bioconductor-biobase
+   - bioconductor-hdf5array
+   - bioconductor-delayedarray
+   - bioconductor-delayedmatrixstats
+
+   # SeuratWrappers is NOT on conda — install via R afterwards
+   - r-devtools
+   - r-remotes
+
+   # other needed pkgs
+   - r-igraph
+   - r-pkgconfig
+   - r-rcpp
+   - r-rcppannoy
+   - r-rcppparallel
+   - r-rcpparmadillo
+
+     # system libs for compiling
+   - make
+   - gcc
+   - gxx
