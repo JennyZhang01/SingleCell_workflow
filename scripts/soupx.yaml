@@ -1,0 +1,13 @@
+name: soupx_env
+channels:
+        - conda-forge
+        - bioconda
+        - defaults
+dependencies:
+        - r-base>=4.2
+        - r-soupx
+        - r-seurat
+        - bioconductor-dropletutils
+        - r-data.table
+        - r-matrix
+        - r-sceasy
