@@ -12,6 +12,10 @@ rule all:
     input:
         expand("qc/{sample}/prepass/scrublet_prepass.tsv", sample=SAMPLES),
         expand("qc/{sample}/soupx/matrix.mtx.gz", sample=SAMPLES)
+    	"seurat_qc/umap_before_after_harmony.pdf",
+	"Processed_data/seurat_obj_harm_with_celltype.rds",
+	"seurat_qc/cluster_before_tra.pdf"
+	"Processed_data/average_pseudotime.pdf"
     threads: 1
     resources:
         mem_mb = 1000
@@ -66,4 +70,45 @@ rule soupx_with_prepass:
           {params.out_dir}
         """
 
+rule seurat_cluster:
+    input:
+    	expand("qc/{sample}/soupx/matrix.mtx.gz", sample=SAMPLES),
+	"batch_info.txt"
+    output:
+	"seurat_qc/umap_before_after_harmony.pdf",
+        "Processed_data/seurat_obj_harm_with_celltype.rds"
+    threads: 4
+    resources:
+	mem_mb = 160000
+    params:
+        project_dir=data_dir.rstrip("/")
+    shell:
+        r"""
+	source ~/.bashrc || true
+	source "$(conda info --base)/etc/profile.d/conda.sh"
+	conda activate /bigdata/wmalab/jzhan413/proj/env/seurat5
 
+	Rscript scripts/seurat_cluster.R \
+	{params.project_dir} \
+	20
+	"""
+
+
+rule monocle3_trajectory:
+    input:
+        "Processed_data/seurat_obj_harm_with_celltype.rds"
+    output:
+        "seurat_qc/cluster_before_tra.pdf",
+	"Processed_data/average_pseudotime.pdf"
+    threads: 4
+    resources:
+        mem_mb = 200000
+    shell:
+        r"""
+        source ~/.bashrc || true
+        source "$(conda info --base)/etc/profile.d/conda.sh"
+        conda activate /bigdata/wmalab/jzhan413/proj/env/monocle3
+
+        Rscript scripts/monocles.R \
+        {data_dir.rstrip("/")}
+        """
