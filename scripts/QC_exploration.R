@@ -1,6 +1,22 @@
 
 
 ############ QC and marker gene exploration ################# 
+plot_and_save_feature <- function(obj, gene, out_dir, width = 12, height = 6) {
+  p <- FeaturePlot(
+    obj,
+    features = gene,
+    cols = c("lightgray", "blue")
+  ) + ggtitle(gene)
+  
+  ggsave(
+    filename = file.path(out_dir, paste0(gene, ".pdf")),
+    plot = p,
+    width = width,
+    height = height
+  )
+}
+
+
 
 ########vlnplots for some genes ######### 
 seurat_obj_harm <- subset(seurat_obj_harm, idents = setdiff(levels(seurat_obj_harm), NA))
@@ -50,33 +66,16 @@ meta_sub <- seurat_obj_harm@meta.data[xist_male_cells, ]
 # count number per sample
 table(meta_sub$sample)
 
-HLA_G_umap <- FeaturePlot(seurat_obj_harm,features = "HLA-G",cols = c("lightgray", "blue"))
-ggsave(filename = paste0(out_dir,"/HLA-g.pdf"),plot = HLA_G_umap, width    = 12,height   = 6)
-
-
-
-CYP19A1_umap <- FeaturePlot(seurat_obj_harm,features = "CYP19A1",cols = c("lightgray", "blue"))
-ggsave(filename = paste0(out_dir,"/CYP19A.pdf"),plot =CYP19A1_umap, width    = 12,height   = 6)
-
-EPS8L1_umap <- FeaturePlot(seurat_obj_harm,features = "EPS8L1",cols = c("lightgray", "blue"))
-ggsave(filename = paste0(out_dir,"/EPS8L1.pdf"),plot =EPS8L1_umap, width    = 12,height   = 6)
-
-
-NOTUM_umap <- FeaturePlot(seurat_obj_harm,features = "NOTUM",cols = c("lightgray", "blue"))
-ggsave(filename = paste0(out_dir,"/NOTUM.pdf"),plot =NOTUM_umap, width    = 12,height   = 6)
-
-
-SLC6A4_umap <- FeaturePlot(seurat_obj_harm,features = "SLC6A4",cols = c("lightgray", "blue"))
-ggsave(filename = paste0(out_dir,"/SLC6A4.pdf"),plot =SLC6A4_umap, width    = 12,height   = 6)
-
-
-SLC27A2_umap <- FeaturePlot(seurat_obj_harm,features = "SLC27A2",cols = c("lightgray", "blue"))
-ggsave(filename = paste0(out_dir,"/SLC27A2.pdf"),plot = SLC27A2_umap, width    = 12,height   = 6)
-
-
-KRT7_umap <- FeaturePlot(seurat_obj_harm,features = "KRT7",cols = c("lightgray", "blue"))
-ggsave(filename = paste0(out_dir,"/KRT7.pdf"),plot = KRT7_umap, width    = 12,height   = 6)
-
-
-CSH1_umap <- FeaturePlot(seurat_obj_harm,features = "CSH1",cols = c("lightgray", "blue"))
-ggsave(filename = paste0(out_dir,"/SLC27A2.pdf"),plot =CSH1_umap, width    = 12,height   = 6)
+genes_to_plot <- c(
+  "HLA-G",
+  "CYP19A1",
+  "EPS8L1",
+  "NOTUM",
+  "SLC6A4",
+  "SLC27A2",
+  "KRT7",
+  "CSH1"
+)
+for (g in genes_to_plot) {
+  plot_and_save_feature(seurat_obj_harm, g, out_dir)
+}
